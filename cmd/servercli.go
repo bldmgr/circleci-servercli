@@ -19,6 +19,10 @@ func main() {
 	}
 
 	status := circleci.Me(ci)
+	if status == false {
+		fmt.Printf("Error with configuration -> %t \n", status)
+		os.Exit(1)
+	}
 	fmt.Printf("Data is being fetched from server %s -> %t \n", loadedConfig.Host, status)
 	p := circleci.GetPipeline(ci, loadedConfig.Project, "web", 1)
 	t := table.NewWriter()
