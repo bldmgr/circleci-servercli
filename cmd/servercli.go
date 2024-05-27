@@ -1,62 +1,65 @@
 package main
 
 import (
-	"fmt"
-	"github.com/bldmgr/circleci"
-	common "github.com/bldmgr/circleci-servercli/pkg/common"
-	setting "github.com/bldmgr/circleci/pkg/config"
-	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
 	"os"
-	"strconv"
+	"path/filepath"
+)
+
+const (
+	homeEnvVar    = "CIRCLE_HOME"
+	hostEnvVar    = "CIRCLE_HOSTNAME"
+	tokenEnvVar   = "CIRCLE_TOKEN"
+	projectEnvVar = "CIRCLE_PROJECT"
+)
+
+var (
+	rootCmd     *cobra.Command
+	globalUsage = `Servercli is a compact and smart client that provides a simple interface that automates access to CircleCI’s API.`
+	conf        *initCmd
 )
 
 func main() {
-	loadedConfig := setting.SetConfigYaml()
-
-	ci, err := circleci.New(loadedConfig.Host, loadedConfig.Token, loadedConfig.Project)
-	if err != nil {
-		panic(err)
-	}
-
-	status := circleci.Me(ci)
-	if status == false {
-		fmt.Printf("Error with configuration -> %t \n", status)
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
-	fmt.Printf("Data is being fetched from server %s -> %t \n", loadedConfig.Host, status)
-	p := circleci.GetPipeline(ci, loadedConfig.Project, "web", 1)
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Agent Version", "Runner/VM/Image"})
-	for i := range p {
-		project, vcs, namespace := common.FormatProjectSlug(p[i].ProjectSlug)
-		workflows := circleci.GetPipelineWorkflows(ci, p[i].ID, "none")
-		for w := range workflows {
-			var jobs []circleci.WorkflowItem = circleci.GetWorkflowJob(ci, workflows[w].ID, "none", "i.data", "i.token")
+}
 
-			for j := range jobs {
-				executors := ""
-				data := string(circleci.GetJobData(ci, strconv.Itoa(jobs[j].JobNumber), vcs, namespace, project, "0", ""))
-				jobHost := string(data) + "\n"
+func init() {
+	rootCmd = newRootCmd()
+}
 
-				outAgent, outRunner, outVm, outImage, _, outdocker := common.ParseVariables(jobHost, "Build-agent version ", "Launch-agent version ", "Using volume:", "default", "  using image ", "Starting container ")
-				if outRunner != "" {
-					executors = outRunner
-				}
-				if outVm != "" {
-					executors = outVm
-				}
-				if outImage != "" {
-					executors = outImage
-				}
-				if outdocker != "" {
-					executors = outdocker
-				}
+func newRootCmd() *cobra.Command {
+	ciHome := defaultCiHome()
+	conf = setConf()
 
-				t.AppendRows([]table.Row{{project, p[i].Number, p[i].ID, p[i].Trigger.Actor.Login, workflows[w].Name, jobs[j].Name, jobs[j].JobNumber, jobs[j].Status, outAgent, executors}})
-			}
-		}
-
+	cmd := &cobra.Command{
+		Use:          "servercli",
+		Short:        globalUsage,
+		Long:         globalUsage,
+		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
+			return
+		},
 	}
-	t.Render()
+
+	p := cmd.PersistentFlags()
+	p.StringVar(&ciHome, "home", defaultCiHome(), "location of your config. Overrides $CIRCLE_HOME")
+
+	cmd.AddCommand(
+		newInitCmd(conf.host, conf.token, conf.project),
+		newStatusCmd(conf.host, conf.token, conf.project),
+		newTreeCmd(conf.host, conf.token, conf.project),
+	)
+
+	return cmd
+}
+
+func defaultCiHome() string {
+	if home := os.Getenv(homeEnvVar); home != "" {
+		return home
+	}
+	homeEnvPath := os.Getenv("HOME")
+
+	return filepath.Join(homeEnvPath, ".")
 }
