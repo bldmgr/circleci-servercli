@@ -24,6 +24,7 @@ type dashboardCmd struct {
 	actor    string
 	expand   string
 	queryaws string
+	theme    string
 }
 
 const (
@@ -48,11 +49,11 @@ func newStatusCmd(host string, token string, project string) *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVarP(&i.project, "project", "p", "all", "Project Name")
-	f.StringVarP(&i.status, "status", "s", "all", "Status of job")
+	f.StringVarP(&i.status, "status", "s", "all", "Status of jobs")
 	f.StringVarP(&i.actor, "actor", "a", "all", "Actor name")
-	f.StringVarP(&i.expand, "expand", "e", "",
-		"Expand job")
+	f.StringVarP(&i.expand, "expand", "e", "", "Expand data to show host")
 	f.StringVarP(&i.queryaws, "query-aws", "q", "", "Query AWS")
+	f.StringVarP(&i.theme, "theme", "t", "default", "Dashboard Theme (dark, light)")
 
 	return cmd
 }
@@ -185,13 +186,13 @@ func (cmd *dashboardCmd) run() error {
 	p := circleci.GetPipeline(ci, loadedConfig.Project, "web", cmd.page)
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	if cmd.expand == "exp" {
+	if cmd.expand == "host" {
+		t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Branch", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Agent Version", "Runner/VM/Image"})
+	} else if cmd.expand == "aws" {
 		t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Branch", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Agent Version", "Runner/VM/Image", "AMI ID"})
 	} else {
 		t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Branch", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Started At", "Stopped At", "Tests"})
 	}
-
-	//GetTestMetadata(ci CI, job_id string, vsc string, namespace string, project string, output string, page int)
 
 	for i := range p {
 		project, vcs, namespace := common.FormatProjectSlug(p[i].ProjectSlug)
@@ -207,7 +208,6 @@ func (cmd *dashboardCmd) run() error {
 						cnt_success := 0
 						cnt_error := 0
 						cnt_skipped := 0
-						items := make([]TestMetadata, 0)
 						TestMessage := ""
 						payload := circleci.GetTestMetadata(ci, strconv.Itoa(jobs[j].JobNumber), vcs, namespace, project, "", 1)
 						if len(payload) != 0 {
@@ -215,30 +215,12 @@ func (cmd *dashboardCmd) run() error {
 								counter++
 								if payload[i].Result == "failure" {
 									cnt_failure++
-									items = append(items, TestMetadata{
-										Classname: payload[i].Classname,
-										File:      payload[i].File,
-										Name:      payload[i].Name,
-										Result:    payload[i].Result,
-										Message:   payload[i].Message,
-										RunTime:   payload[i].RunTime,
-										Source:    payload[i].Source,
-									})
 								}
 								if payload[i].Result == "success" {
 									cnt_success++
 								}
 								if payload[i].Result == "error" {
 									cnt_error++
-									items = append(items, TestMetadata{
-										Classname: payload[i].Classname,
-										File:      payload[i].File,
-										Name:      payload[i].Name,
-										Result:    payload[i].Result,
-										Message:   payload[i].Message,
-										RunTime:   payload[i].RunTime,
-										Source:    payload[i].Source,
-									})
 								}
 								if payload[i].Result == "skipped" {
 									cnt_skipped++
@@ -246,13 +228,15 @@ func (cmd *dashboardCmd) run() error {
 							}
 							if cnt_failure != 0 {
 								TestMessage = fmt.Sprintf("%d test failed out of %d", cnt_failure, counter)
+							} else if cnt_error != 0 {
+								TestMessage = fmt.Sprintf("%d error out of %d", cnt_error, counter)
 							} else {
 								TestMessage = fmt.Sprintf("%d tests are passing", counter)
 							}
 						}
 
 						if cmd.status == "all" || cmd.status == "failed" && jobs[j].Status == "failed" || cmd.status == "failed" && jobs[j].Status == "blocked" || cmd.status == "running" && jobs[j].Status == "running" {
-							if cmd.expand == "exp" {
+							if cmd.expand == "host" {
 								data := string(circleci.GetJobData(ci, strconv.Itoa(jobs[j].JobNumber), vcs, namespace, project, "0", ""))
 								jobHost := string(data) + "\n"
 
@@ -275,7 +259,13 @@ func (cmd *dashboardCmd) run() error {
 		}
 
 	}
-	t.SetStyle(table.StyleColoredGreenWhiteOnBlack)
+	if cmd.theme == "default" {
+		t.SetStyle(table.StyleRounded)
+	} else if cmd.theme == "dark" {
+		t.SetStyle(table.StyleColoredDark)
+	} else if cmd.theme == "light" {
+		t.SetStyle(table.StyleColoredBlackOnBlueWhite)
+	}
 	t.Render()
 	return nil
 }
