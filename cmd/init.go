@@ -43,14 +43,14 @@ func (i *initCmd) run(ciHome string) error {
 	h, n := common.SetInput()
 	t := common.GetInput("Token: ")
 	c := &Config{
-		host:      h,
-		token:     t,
-		namespace: n,
+		Host:      h,
+		Token:     t,
+		Namespace: n,
 	}
 
-	viper.Set(hostEnvVar, c.host)
-	viper.Set(tokenEnvVar, c.token)
-	viper.Set(namespaceEnvVar, c.namespace)
+	viper.Set(hostEnvVar, c.Host)
+	viper.Set(tokenEnvVar, c.Token)
+	viper.Set(namespaceEnvVar, c.Namespace)
 	viper.SetConfigType("yaml")
 	err := viper.WriteConfigAs(ciHome + "/ci.yaml")
 	if err != nil {

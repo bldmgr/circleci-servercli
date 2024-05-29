@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/bldmgr/circleci"
 	"github.com/bldmgr/circleci-servercli/pkg/common"
-	setting "github.com/bldmgr/circleci/pkg/config"
 	"github.com/jedib0t/go-pretty/v6/list"
 	"github.com/spf13/cobra"
 	"os"
@@ -74,19 +73,19 @@ func (cmd *treeCmd) run() error {
 	lTemp.Render()
 
 	l.SetStyle(list.StyleConnectedRounded)
-	loadedConfig := setting.SetConfigYaml()
+	loadedConfig := setConf()
 
-	ci, err := circleci.New(loadedConfig.Host, loadedConfig.Token, loadedConfig.Project)
+	ci, err := circleci.New(loadedConfig.host, loadedConfig.token, loadedConfig.namespace)
 	if err != nil {
 		panic(err)
 	}
 
 	status := circleci.Me(ci)
 	if status == false {
-		fmt.Printf("Error with configuration %s -> %t \n", loadedConfig.Host, status)
+		fmt.Printf("Error with configuration %s -> %t \n", loadedConfig.host, status)
 		os.Exit(1)
 	}
-	fmt.Printf("Data is being fetched from server %s -> %t \n", loadedConfig.Host, status)
+	fmt.Printf("Data is being fetched from server %s -> %t \n", loadedConfig.host, status)
 	workflows := circleci.GetPipelineWorkflows(ci, cmd.pipelineId, "none")
 	project, _, _ := common.FormatProjectSlug(workflows[0].ProjectSlug)
 	l.AppendItem(project)

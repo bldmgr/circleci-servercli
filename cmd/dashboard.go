@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/bldmgr/circleci"
 	"github.com/bldmgr/circleci-servercli/pkg/common"
-	setting "github.com/bldmgr/circleci/pkg/config"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 	"os"
@@ -15,16 +14,17 @@ import (
 )
 
 type dashboardCmd struct {
-	host     string
-	token    string
-	project  string
-	counter  int
-	page     int
-	status   string
-	actor    string
-	expand   string
-	queryaws string
-	theme    string
+	host      string
+	token     string
+	project   string
+	namespace string
+	counter   int
+	page      int
+	status    string
+	actor     string
+	expand    string
+	queryaws  string
+	theme     string
 }
 
 const (
@@ -32,11 +32,11 @@ const (
 	maxdashboard  = 10
 )
 
-func newStatusCmd(host string, token string, project string) *cobra.Command {
+func newStatusCmd(host string, token string, namespace string) *cobra.Command {
 	i := &dashboardCmd{
-		host:    host,
-		token:   token,
-		project: project,
+		host:      host,
+		token:     token,
+		namespace: namespace,
 	}
 
 	cmd := &cobra.Command{
@@ -125,19 +125,19 @@ func checkForValue(value string, instanceItem []InstanceItem) string {
 func (cmd *dashboardCmd) run() error {
 	instanceName := ""
 	instanceItem := make([]InstanceItem, 0)
-	loadedConfig := setting.SetConfigYaml()
+	loadedConfig := setConf()
 
-	ci, err := circleci.New(loadedConfig.Host, loadedConfig.Token, loadedConfig.Project)
+	ci, err := circleci.New(loadedConfig.host, loadedConfig.token, loadedConfig.namespace)
 	if err != nil {
 		panic(err)
 	}
 
 	status := circleci.Me(ci)
 	if status == false {
-		fmt.Printf("Error with configuration %s -> %t \n", loadedConfig.Host, status)
+		fmt.Printf("Error with configuration %s -> %t \n", loadedConfig.host, status)
 		os.Exit(1)
 	}
-	fmt.Printf("Data is being fetched from server %s -> %t \n", loadedConfig.Host, status)
+	fmt.Printf("Data is being fetched from server %s -> %t \n", loadedConfig.host, status)
 	cmd.counter = 0
 	if cmd.project == "all" {
 		cmd.page = 1
@@ -183,7 +183,7 @@ func (cmd *dashboardCmd) run() error {
 
 	}
 
-	p := circleci.GetPipeline(ci, loadedConfig.Project, "web", cmd.page)
+	p := circleci.GetPipeline(ci, loadedConfig.namespace, "web", cmd.page)
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	if cmd.expand == "host" {

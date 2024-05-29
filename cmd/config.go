@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	host      string `yaml:host`
-	token     string `yaml:token`
-	namespace string `yaml:namespace`
+	Host      string `yaml:host`
+	Token     string `yaml:token`
+	Namespace string `yaml:namespace`
 }
 
 func setConf() *initCmd {
