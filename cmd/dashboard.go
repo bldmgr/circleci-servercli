@@ -28,7 +28,7 @@ type dashboardCmd struct {
 }
 
 const (
-	dashboardDesc = `Checking if connection is successful`
+	dashboardDesc = `The Dashboard.`
 	maxdashboard  = 10
 )
 

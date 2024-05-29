@@ -93,7 +93,7 @@ func SetInput() (string, string) {
 	fmt.Print("Host: ")
 	host, _ := reader.ReadString('\n')
 
-	fmt.Print("Project URL Path: ")
+	fmt.Print("Namespace: ")
 	project_url, _ := reader.ReadString('\n')
 
 	return strings.TrimSpace(host), strings.TrimSpace(project_url)

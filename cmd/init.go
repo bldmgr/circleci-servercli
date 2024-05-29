@@ -9,22 +9,22 @@ import (
 )
 
 type initCmd struct {
-	host    string
-	token   string
-	project string
-	data    string
+	host      string
+	token     string
+	namespace string
+	data      string
 }
 
 const (
 	initDesc = `Sets up local environment to work with circle`
 )
 
-func newInitCmd(host string, token string, project string) *cobra.Command {
+func newInitCmd(host string, token string, namespace string) *cobra.Command {
 	ciHome := defaultCiHome()
 	i := &initCmd{
-		host:    host,
-		token:   token,
-		project: project,
+		host:      host,
+		token:     token,
+		namespace: namespace,
 	}
 
 	cmd := &cobra.Command{
@@ -40,17 +40,17 @@ func newInitCmd(host string, token string, project string) *cobra.Command {
 
 func (i *initCmd) run(ciHome string) error {
 	fmt.Println("")
-	h, p := common.SetInput()
+	h, n := common.SetInput()
 	t := common.GetInput("Token: ")
 	c := &Config{
-		host:    h,
-		token:   t,
-		project: p,
+		host:      h,
+		token:     t,
+		namespace: n,
 	}
 
 	viper.Set(hostEnvVar, c.host)
 	viper.Set(tokenEnvVar, c.token)
-	viper.Set(projectEnvVar, c.project)
+	viper.Set(namespaceEnvVar, c.namespace)
 	viper.SetConfigType("yaml")
 	err := viper.WriteConfigAs(ciHome + "/ci.yaml")
 	if err != nil {

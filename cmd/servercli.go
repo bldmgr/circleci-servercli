@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	homeEnvVar    = "CIRCLE_HOME"
-	hostEnvVar    = "CIRCLE_HOSTNAME"
-	tokenEnvVar   = "CIRCLE_TOKEN"
-	projectEnvVar = "CIRCLE_PROJECT"
+	homeEnvVar      = "CIRCLE_HOME"
+	hostEnvVar      = "CIRCLE_HOSTNAME"
+	tokenEnvVar     = "CIRCLE_TOKEN"
+	namespaceEnvVar = "CIRCLE_NAMESPACE"
 )
 
 var (
@@ -47,9 +47,9 @@ func newRootCmd() *cobra.Command {
 	p.StringVar(&ciHome, "home", defaultCiHome(), "location of your config. Overrides $CIRCLE_HOME")
 
 	cmd.AddCommand(
-		newInitCmd(conf.host, conf.token, conf.project),
-		newStatusCmd(conf.host, conf.token, conf.project),
-		newTreeCmd(conf.host, conf.token, conf.project),
+		newInitCmd(conf.host, conf.token, conf.namespace),
+		newStatusCmd(conf.host, conf.token, conf.namespace),
+		newTreeCmd(conf.host, conf.token, conf.namespace),
 	)
 
 	return cmd

@@ -15,7 +15,7 @@ import (
 type treeCmd struct {
 	host       string
 	token      string
-	project    string
+	namespace  string
 	pipelineId string
 	counter    int
 	status     string
@@ -25,15 +25,15 @@ type treeCmd struct {
 }
 
 const (
-	treeDesc = `Checking if connection is successful`
+	treeDesc = `Single project view with more data`
 	maxTree  = 10
 )
 
-func newTreeCmd(host string, token string, project string) *cobra.Command {
+func newTreeCmd(host string, token string, namespace string) *cobra.Command {
 	i := &treeCmd{
-		host:    host,
-		token:   token,
-		project: project,
+		host:      host,
+		token:     token,
+		namespace: namespace,
 	}
 
 	cmd := &cobra.Command{
