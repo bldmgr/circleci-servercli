@@ -89,6 +89,29 @@ type InstanceItem struct {
 	SubnetId        string `json:"subnet_id"`
 }
 
+type TestMetadata struct {
+	Classname string  `json:"classname"`
+	File      string  `json:"file"`
+	Name      string  `json:"name"`
+	Result    string  `json:"result"`
+	Message   string  `json:"message"`
+	RunTime   float64 `json:"run_time"`
+	Source    string  `json:"source"`
+}
+
+type TestDataJson struct {
+	Id                string `json:"id"`
+	Totals            int    `json:"totals"`
+	Failure           int    `json:"failure"`
+	FailurePercentage string `json:"fpercentage"`
+	Success           int    `json:"success"`
+	SuccessPercentage string `json:"spercentage"`
+	Error             int    `json:"error"`
+	ErrorPercentage   string `json:"epercentage"`
+	Skipped           int    `json:"skipped"`
+	SkippedPercentage string `json:"kpercentage"`
+}
+
 func checkForValue(value string, instanceItem []InstanceItem) string {
 	for q := range instanceItem {
 		if value == instanceItem[q].InstanceName {
@@ -165,8 +188,11 @@ func (cmd *dashboardCmd) run() error {
 	if cmd.expand == "exp" {
 		t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Branch", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Agent Version", "Runner/VM/Image", "AMI ID"})
 	} else {
-		t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Branch", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Started At", "Stopped At"})
+		t.AppendHeader(table.Row{"Project", "Number", "Pipeline Id", "Branch", "Trigger Actor", "Workflow Name", "Jobs Name", "Job Number", "Job Status", "Started At", "Stopped At", "Tests"})
 	}
+
+	//GetTestMetadata(ci CI, job_id string, vsc string, namespace string, project string, output string, page int)
+
 	for i := range p {
 		project, vcs, namespace := common.FormatProjectSlug(p[i].ProjectSlug)
 		if project == cmd.project && cmd.counter != maxdashboard || cmd.project == "all" {
@@ -176,6 +202,54 @@ func (cmd *dashboardCmd) run() error {
 				for w := range workflows {
 					var jobs []circleci.WorkflowItem = circleci.GetWorkflowJob(ci, workflows[w].ID, "none", "i.data", "i.token")
 					for j := range jobs {
+						counter := 0
+						cnt_failure := 0
+						cnt_success := 0
+						cnt_error := 0
+						cnt_skipped := 0
+						items := make([]TestMetadata, 0)
+						TestMessage := ""
+						payload := circleci.GetTestMetadata(ci, strconv.Itoa(jobs[j].JobNumber), vcs, namespace, project, "", 1)
+						if len(payload) != 0 {
+							for i := range payload {
+								counter++
+								if payload[i].Result == "failure" {
+									cnt_failure++
+									items = append(items, TestMetadata{
+										Classname: payload[i].Classname,
+										File:      payload[i].File,
+										Name:      payload[i].Name,
+										Result:    payload[i].Result,
+										Message:   payload[i].Message,
+										RunTime:   payload[i].RunTime,
+										Source:    payload[i].Source,
+									})
+								}
+								if payload[i].Result == "success" {
+									cnt_success++
+								}
+								if payload[i].Result == "error" {
+									cnt_error++
+									items = append(items, TestMetadata{
+										Classname: payload[i].Classname,
+										File:      payload[i].File,
+										Name:      payload[i].Name,
+										Result:    payload[i].Result,
+										Message:   payload[i].Message,
+										RunTime:   payload[i].RunTime,
+										Source:    payload[i].Source,
+									})
+								}
+								if payload[i].Result == "skipped" {
+									cnt_skipped++
+								}
+							}
+							if cnt_failure != 0 {
+								TestMessage = fmt.Sprintf("%d test failed out of %d", cnt_failure, counter)
+							} else {
+								TestMessage = fmt.Sprintf("%d tests are passing", counter)
+							}
+						}
 
 						if cmd.status == "all" || cmd.status == "failed" && jobs[j].Status == "failed" || cmd.status == "failed" && jobs[j].Status == "blocked" || cmd.status == "running" && jobs[j].Status == "running" {
 							if cmd.expand == "exp" {
@@ -191,15 +265,17 @@ func (cmd *dashboardCmd) run() error {
 									t.AppendRows([]table.Row{{project, p[i].Number, p[i].ID, p[i].Vcs.Branch, p[i].Trigger.Actor.Login, workflows[w].Name, jobs[j].Name, jobs[j].JobNumber, jobs[j].Status, outAgent, executors}})
 								}
 							} else {
-								t.AppendRows([]table.Row{{project, p[i].Number, p[i].ID, p[i].Vcs.Branch, p[i].Trigger.Actor.Login, workflows[w].Name, jobs[j].Name, jobs[j].JobNumber, jobs[j].Status, jobs[j].StartedAt, jobs[j].StoppedAt}})
+								t.AppendRows([]table.Row{{project, p[i].Number, p[i].ID, p[i].Vcs.Branch, p[i].Trigger.Actor.Login, workflows[w].Name, jobs[j].Name, jobs[j].JobNumber, jobs[j].Status, jobs[j].StartedAt, jobs[j].StoppedAt, TestMessage}})
 							}
 						}
 					}
 				}
+				t.AppendSeparator()
 			}
 		}
 
 	}
+	t.SetStyle(table.StyleColoredGreenWhiteOnBlack)
 	t.Render()
 	return nil
 }
